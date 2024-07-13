@@ -1,9 +1,8 @@
 *
-
-!.gitignore
-!*/**
-!build
+!*/
+!*.*
 
 .vscode/
 .nvim/
 
+obj/*
