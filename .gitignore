@@ -1,0 +1,9 @@
+*
+
+!.gitignore
+!*/**
+!build
+
+.vscode/
+.nvim/
+

@@ -1,0 +1,9 @@
+#!/bin/sh
+
+OBJDIR="obj/"
+
+if [ ! -d $OBJDIR ]; then
+  mkdir $OBJDIR
+fi
+
+make

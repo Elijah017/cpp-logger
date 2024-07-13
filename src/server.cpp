@@ -220,7 +220,7 @@ private:
 
     logqueuelock.unlock();
 
-    return std::move(_ret);
+    return _ret;
   }
 
   void commitLog(uint8_t level, std::string message) {
