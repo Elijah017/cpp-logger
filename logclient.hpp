@@ -18,9 +18,11 @@ public:
    *   -  0: Succcess
    *   - -1: Failure
    */
-  int writeLog(uint8_t level, std::string log);
+  int writeLog(log_t level, std::string log);
 
 private:
   uint16_t port;
   struct sockaddr_in addr;
+
+  static void format_log(log_t level, std::string &log);
 };

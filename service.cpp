@@ -8,7 +8,7 @@
  * corrupting the log.
  *
  * [Format]
- * ./logger [name | stdout] [port]
+ * ./logger [name | STDOUT] [port]
  *
  * [Specification]
  * - name :- The name of the file to which the log should be output
@@ -22,7 +22,7 @@
  * [Use]
  *   [Log Format]
  *   <level>:<message>
- *   - level   :- one of INFO, DEBUG, ERROR (will determine colour in stdout
+ *   - level   :- one of INFO, DEBUG, ERROR (will determine colour in STDOUT
  * [blue, yellow, red])
  *   - message :- the arbitrary message to be printed
  */
@@ -43,18 +43,27 @@
 #include <queue>
 #include <string>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <thread>
 #include <unistd.h>
 #include <utility>
 
 #include "loglevel.hpp"
 
+#define STDOUT STDOUT_FILENO
+
 #define port_t uint16_t
 #define fd_t ssize_t
 
-void close_file(FILE *file) {
-  if (stdout != file) {
-    fclose(file);
+/**
+ * ensures that file is not STDOUT before closing, otherwise leaving untouched
+ *
+ * parameters:
+ * - file (FILE *): file to be checked then closed
+ */
+void close_file(fd_t file) {
+  if (STDOUT != file) {
+    close(file);
   }
 }
 
@@ -62,9 +71,10 @@ class Logger {
 public:
   Logger(std::string name, port_t port) {
     if (name == "stdout") {
-      file = stdout;
+      file = STDOUT;
     } else {
-      if ((file = fopen(name.c_str(), "a")) == NULL) {
+      if ((file = open(name.c_str(), O_WRONLY | O_APPEND | O_CREAT,
+                       S_IRUSR | S_IWUSR)) < 0) {
         perror("couldn't create file in append mode");
         exit(EXIT_FAILURE);
       }
@@ -101,7 +111,7 @@ public:
     if (listen(sock, SOMAXCONN) < 0) {
       perror("failed to listen");
       close(sock);
-      fclose(file);
+      close_file(file);
       exit(EXIT_FAILURE);
     }
 
@@ -136,6 +146,7 @@ public:
         if (bytes < 1) {
           break;
         }
+
         size_t buf_start = 0;
         if (first_read) {
           for (; buf_start < LINE_MAX && buf[buf_start] != ':'; buf_start++)
@@ -180,7 +191,7 @@ public:
   }
 
 private:
-  FILE *file;
+  ssize_t file;
   fd_t sock;
   struct sockaddr_in addr;
   std::queue<std::pair<uint8_t, std::string>> logqueue;
@@ -219,28 +230,28 @@ private:
 
     switch (level) {
     case HEADER: {
-      if (file == stdout) {
+      if (file == STDOUT) {
         apply("\e[0m");
       }
       break;
     }
     case INFO: {
       message = "Info: " + message;
-      if (file == stdout) {
+      if (file == STDOUT) {
         apply("\e[0;36m");
       }
       break;
     }
     case DEBUG: {
       message = "Debug: " + message;
-      if (file == stdout) {
+      if (file == STDOUT) {
         apply("\e[0;93m");
       }
       break;
     }
     case ERROR: {
       message = "Error: " + message;
-      if (file == stdout) {
+      if (file == STDOUT) {
         apply("\e[0;91m");
       }
       break;
@@ -251,12 +262,15 @@ private:
     }
     }
 
-    if (file == stdout) {
+    if (file == STDOUT) {
       message += "\e[0m";
     }
 
+    if (message[message.size() - 1] != '\n') {
+      message += "\n";
+    }
     char const *msg = message.c_str();
-    fwrite(msg, sizeof(char), message.size(), file);
+    write(file, msg, message.size());
   }
 };
 
